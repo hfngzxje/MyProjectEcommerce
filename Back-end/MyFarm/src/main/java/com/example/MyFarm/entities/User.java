@@ -49,4 +49,7 @@ public class User {
     @Column(name = "Code")
     String code;
 
+    @Column(name = "IsActive")
+    boolean isActive;
+
 }

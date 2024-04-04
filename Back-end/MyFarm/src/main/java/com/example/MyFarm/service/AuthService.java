@@ -31,6 +31,8 @@ import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -43,6 +45,7 @@ public class AuthService implements IAuthService {
     @NonFinal
     @org.springframework.beans.factory.annotation.Value("${signer.key}")
     protected String SIGNER_KEY;
+    //valid token
 
     public IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException {
         var token = request.getToken();
@@ -57,23 +60,43 @@ public class AuthService implements IAuthService {
                 .valid(verified && expityTime.after(new Date()))
                 .build();
     }
+
+    //login
+    private Map<String, Integer> failedLoginAttemptsMap = new HashMap<>();
+
     @Override
     public AuthResponse authenticate(AuthRequest request) {
         PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
         var user = userRepository.findByUsername(request.getUserName())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-        boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
-        if(!authenticated){
-            throw new AppException(ErrorCode.INVALID_LOGINRQ);
+        if(user.isActive()) {
+            boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
+            int maxAttempts = 4;
+            if (!authenticated) {
+                int currentFailedAttempts = failedLoginAttemptsMap.getOrDefault(user.getUsername(), 0);
+                currentFailedAttempts++;
+                failedLoginAttemptsMap.put(user.getUsername(), currentFailedAttempts);
+                if (currentFailedAttempts < maxAttempts) {
+                    throw new AppException(ErrorCode.INVALID_LOGINRQ);
+                } else {
+                    user.setActive(false);
+                    userRepository.save(user);
+                    throw new AppException(ErrorCode.INVALID_ACCBAN);
+                }
+            } else {
+                failedLoginAttemptsMap.remove(user.getUsername());
+            }
+            var token = generateToken(user);
+            return AuthResponse.builder()
+                    .token(token)
+                    .authenticated(true)
+                    .build();
+        }else {
+            throw new AppException(ErrorCode.INVALID_ACCBAN);
         }
-
-        var token = generateToken(user);
-        return AuthResponse.builder()
-                .token(token)
-                .authenticated(true)
-                .build();
     }
 
+    //register
     @Override
     public RegisterResponse register(RegisterRequest request) {
         if(userRepository.existsByUsername(request.getUsername()))
@@ -82,6 +105,7 @@ public class AuthService implements IAuthService {
         BeanUtils.copyProperties(request, user);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRoles("CUSTOMER");
+        user.setActive(true);
         User savedUser = userRepository.save(user);
         RegisterResponse response = new RegisterResponse();
         BeanUtils.copyProperties(savedUser, response);
@@ -89,6 +113,7 @@ public class AuthService implements IAuthService {
     }
 
 
+    //gen token
     private String generateToken(User user) {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
 
