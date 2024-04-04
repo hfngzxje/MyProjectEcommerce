@@ -1,9 +1,6 @@
 package com.example.MyFarm.service;
 
-import com.example.MyFarm.dtos.Request.AuthRequest;
-import com.example.MyFarm.dtos.Request.ChangePasswordRequest;
-import com.example.MyFarm.dtos.Request.IntrospectRequest;
-import com.example.MyFarm.dtos.Request.RegisterRequest;
+import com.example.MyFarm.dtos.Request.*;
 import com.example.MyFarm.dtos.response.AuthResponse;
 import com.example.MyFarm.dtos.response.IntrospectResponse;
 import com.example.MyFarm.dtos.response.RegisterResponse;
@@ -24,16 +21,20 @@ import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
@@ -42,12 +43,14 @@ import java.util.Map;
 public class AuthService implements IAuthService {
     UserRepository userRepository;
     PasswordEncoder passwordEncoder;
-
+    JavaMailSender emailSender;
     @NonFinal
     @org.springframework.beans.factory.annotation.Value("${signer.key}")
     protected String SIGNER_KEY;
-    //valid token
+    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    private static final SecureRandom RANDOM = new SecureRandom();
 
+    //valid token
     public IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException {
         var token = request.getToken();
         JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
@@ -130,7 +133,6 @@ public class AuthService implements IAuthService {
         return "Change-password successfully!";
     }
 
-
     //gen token
     private String generateToken(User user) {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
@@ -157,6 +159,56 @@ public class AuthService implements IAuthService {
             throw new RuntimeException(e);
         }
     }
+
+    @Override
+    public String sendCode(String email) {
+        var user = userRepository.findByEmail(email);
+        if(user == null) {
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        }
+        String verificationCode = generateCode(8);
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(email);
+        message.setSubject("Verification Code");
+        message.setText("Your verification code is: " + verificationCode +"     Warning : The code lasts for 3 minutes!!");
+
+        user.setCode(verificationCode);
+        userRepository.save(user);
+
+        emailSender.send(message);
+        return "Send code successfully!";
+    }
+
+    @Override
+    public String confirmOTP(ConfirmOTPRequest request) {
+        var user = userRepository.findByEmail(request.getEmail());
+        if(!user.getCode().equalsIgnoreCase(request.getOtp())){
+
+            throw new AppException(ErrorCode.NOTMATCH_OTP);
+        }
+
+            if(!request.getNewPassword().equalsIgnoreCase(request.getReNewPassword())){
+                throw new AppException(ErrorCode.NOTMATCH_NEWPASSWORD);
+            }else {
+                user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+                user.setCode("");
+                userRepository.save(user);
+            }
+
+        return "Change-password successfully!";
+    }
+
+    public static String generateCode(int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            int randomIndex = RANDOM.nextInt(CHARACTERS.length());
+            sb.append(CHARACTERS.charAt(randomIndex));
+        }
+        return sb.toString();
+    }
+
+
 
 }
 

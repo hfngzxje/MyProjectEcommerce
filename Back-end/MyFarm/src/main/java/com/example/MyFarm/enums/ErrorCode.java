@@ -14,6 +14,7 @@ public enum ErrorCode {
     INVALID_ACCBAN(1009,"Your account has been locked !"),
     INVALID_OLDPASSWORD(1010,"Old password don't match !"),
     NOTMATCH_NEWPASSWORD(1011,"Re-password do not match with new password!"),
+    NOTMATCH_OTP(1012,"The OTP is not match!!"),
     UNCATEGORIZED_EXCEPTION(9999,"Uncategorized error!"),
     ;
     private int code;

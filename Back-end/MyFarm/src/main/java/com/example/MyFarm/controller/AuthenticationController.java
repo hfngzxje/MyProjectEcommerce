@@ -1,9 +1,6 @@
 package com.example.MyFarm.controller;
 
-import com.example.MyFarm.dtos.Request.AuthRequest;
-import com.example.MyFarm.dtos.Request.ChangePasswordRequest;
-import com.example.MyFarm.dtos.Request.IntrospectRequest;
-import com.example.MyFarm.dtos.Request.RegisterRequest;
+import com.example.MyFarm.dtos.Request.*;
 import com.example.MyFarm.dtos.response.ApiResponse;
 import com.example.MyFarm.dtos.response.AuthResponse;
 import com.example.MyFarm.dtos.response.IntrospectResponse;
@@ -55,6 +52,20 @@ public class AuthenticationController {
     ApiResponse<String> changePassword(@RequestBody ChangePasswordRequest request){
         return ApiResponse.<String>builder()
                 .result(authService.changePassword(request))
+                .build();
+    }
+
+    @PostMapping("send-code")
+    ApiResponse<String> sendCode(@RequestParam String email){
+        return ApiResponse.<String>builder()
+                .result(authService.sendCode(email))
+                .build();
+    }
+
+    @PostMapping("confirm-otp-change-password")
+    ApiResponse<String> confirmOTP(@RequestBody ConfirmOTPRequest request){
+        return ApiResponse.<String>builder()
+                .result(authService.confirmOTP(request))
                 .build();
     }
 }
