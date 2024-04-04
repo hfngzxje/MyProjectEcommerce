@@ -2,11 +2,14 @@ package com.example.MyFarm.service;
 
 import com.example.MyFarm.dtos.Request.AuthRequest;
 import com.example.MyFarm.dtos.Request.IntrospectRequest;
+import com.example.MyFarm.dtos.Request.RegisterRequest;
 import com.example.MyFarm.dtos.response.AuthResponse;
 import com.example.MyFarm.dtos.response.IntrospectResponse;
+import com.example.MyFarm.dtos.response.RegisterResponse;
 import com.example.MyFarm.entities.User;
 import com.example.MyFarm.enums.ErrorCode;
 import com.example.MyFarm.exception.AppException;
+import com.example.MyFarm.mappers.UserMapper;
 import com.example.MyFarm.repository.UserRepository;
 import com.example.MyFarm.service.IService.IAuthService;
 import com.nimbusds.jose.*;
@@ -16,22 +19,18 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import lombok.Value;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
 
 import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
 import java.util.Date;
-import java.util.StringJoiner;
 
 @Service
 @Slf4j
@@ -39,6 +38,8 @@ import java.util.StringJoiner;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthService implements IAuthService {
     UserRepository userRepository;
+    PasswordEncoder passwordEncoder;
+
     @NonFinal
     @org.springframework.beans.factory.annotation.Value("${signer.key}")
     protected String SIGNER_KEY;
@@ -71,6 +72,20 @@ public class AuthService implements IAuthService {
                 .token(token)
                 .authenticated(true)
                 .build();
+    }
+
+    @Override
+    public RegisterResponse register(RegisterRequest request) {
+        if(userRepository.existsByUsername(request.getUsername()))
+            throw new AppException(ErrorCode.USER_EXISTED);
+        User user = new User();
+        BeanUtils.copyProperties(request, user);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRoles("CUSTOMER");
+        User savedUser = userRepository.save(user);
+        RegisterResponse response = new RegisterResponse();
+        BeanUtils.copyProperties(savedUser, response);
+        return response;
     }
 
 
