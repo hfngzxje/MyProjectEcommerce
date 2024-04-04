@@ -1,6 +1,7 @@
 package com.example.MyFarm.controller;
 
 import com.example.MyFarm.dtos.Request.AuthRequest;
+import com.example.MyFarm.dtos.Request.ChangePasswordRequest;
 import com.example.MyFarm.dtos.Request.IntrospectRequest;
 import com.example.MyFarm.dtos.Request.RegisterRequest;
 import com.example.MyFarm.dtos.response.ApiResponse;
@@ -48,5 +49,12 @@ public class AuthenticationController {
                         .result(authService.register(request))
                         .massage("Register successfully!")
                         .build();
+    }
+
+    @PostMapping("/change-password")
+    ApiResponse<String> changePassword(@RequestBody ChangePasswordRequest request){
+        return ApiResponse.<String>builder()
+                .result(authService.changePassword(request))
+                .build();
     }
 }

@@ -12,6 +12,8 @@ public enum ErrorCode {
     USER_NOT_EXISTED(1007,"User not existed!"),
     INVALID_LOGINRQ(1008,"Wrong username or password "),
     INVALID_ACCBAN(1009,"Your account has been locked !"),
+    INVALID_OLDPASSWORD(1010,"Old password don't match !"),
+    NOTMATCH_NEWPASSWORD(1011,"Re-password do not match with new password!"),
     UNCATEGORIZED_EXCEPTION(9999,"Uncategorized error!"),
     ;
     private int code;

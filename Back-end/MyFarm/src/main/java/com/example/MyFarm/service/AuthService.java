@@ -1,6 +1,7 @@
 package com.example.MyFarm.service;
 
 import com.example.MyFarm.dtos.Request.AuthRequest;
+import com.example.MyFarm.dtos.Request.ChangePasswordRequest;
 import com.example.MyFarm.dtos.Request.IntrospectRequest;
 import com.example.MyFarm.dtos.Request.RegisterRequest;
 import com.example.MyFarm.dtos.response.AuthResponse;
@@ -112,19 +113,36 @@ public class AuthService implements IAuthService {
         return response;
     }
 
+    @Override
+    public String changePassword(ChangePasswordRequest request) {
+        var user = userRepository.findById(request.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        if(!passwordEncoder.matches(request.getOldPassword(), user.getPassword())){
+            throw new AppException(ErrorCode.INVALID_OLDPASSWORD);
+        }else {
+            if(!request.getNewPassword().equalsIgnoreCase(request.getReNewPassword())){
+                throw new AppException(ErrorCode.NOTMATCH_NEWPASSWORD);
+            }else {
+                user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+                userRepository.save(user);
+            }
+        }
+        return "Change-password successfully!";
+    }
+
 
     //gen token
     private String generateToken(User user) {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
 
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
+                .claim("id", user.getUserId())
                 .subject(user.getUsername())
-                .issuer("hung.com")
+                .claim("scope", user.getRoles())
                 .issueTime(new Date())
                 .expirationTime(new Date(
                         Instant.now().plus(1, ChronoUnit.HOURS).toEpochMilli()
                 ))
-                .claim("scope", user.getRoles())
                 .build();
 
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());

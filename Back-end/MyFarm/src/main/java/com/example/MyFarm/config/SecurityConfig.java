@@ -33,7 +33,8 @@ public class SecurityConfig {
                 request.requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(AUTH_WHITELIST).permitAll()
                         .requestMatchers("/admin/**").hasAuthority("SCOPE_" + ADMIN_SCOPE)
-                        .anyRequest().authenticated());
+                        .anyRequest().authenticated())
+                        .logout((logout) -> logout.logoutSuccessUrl("/auth/login"));
 
         http.oauth2ResourceServer(oauth2 ->
                 oauth2.jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder())));
